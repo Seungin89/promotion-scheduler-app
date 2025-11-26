@@ -1,136 +1,85 @@
-import React, { useState } from "react";
-import { Trash2, Plus } from "lucide-react";
+import React, { useState, useEffect } from "react";
 
-const PromotionForm = ({ onAddPromotions }) => {
-    const [rows, setRows] = useState([
-        { id: Date.now(), name: "", startDate: "", endDate: "", color: "#3b82f6" },
-    ]);
+export default function PromotionForm({ onAddPromotions, editingPromotion, onCancelEdit }) {
+    const [input, setInput] = useState("");
 
-    const handleRowChange = (id, field, value) => {
-        setRows((prevRows) =>
-            prevRows.map((row) =>
-                row.id === id ? { ...row, [field]: value } : row
-            )
-        );
-    };
+    // Populate form when editingPromotion changes
+    useEffect(() => {
+        if (editingPromotion) {
+            // Format: Name, YYYY-MM-DD, YYYY-MM-DD, #HexColor
+            // Ensure we handle Date objects or Firestore Timestamps
+            let start = editingPromotion.startDate;
+            let end = editingPromotion.endDate;
 
-    const addRow = () => {
-        setRows((prevRows) => [
-            ...prevRows,
-            {
-                id: Date.now(),
-                name: "",
-                startDate: "",
-                endDate: "",
-                color: "#3b82f6",
-            },
-        ]);
-    };
+            // Convert Firestore Timestamp to Date if necessary
+            if (start && typeof start.toDate === 'function') start = start.toDate();
+            if (end && typeof end.toDate === 'function') end = end.toDate();
 
-    const removeRow = (id) => {
-        if (rows.length === 1) return; // Prevent removing the last row
-        setRows((prevRows) => prevRows.filter((row) => row.id !== id));
-    };
+            // Convert to string YYYY-MM-DD
+            const startStr = start ? new Date(start).toISOString().split('T')[0] : '';
+            const endStr = end ? new Date(end).toISOString().split('T')[0] : '';
+
+            const line = `${editingPromotion.name}, ${startStr}, ${endStr}, ${editingPromotion.color}`;
+            setInput(line);
+        } else {
+            setInput("");
+        }
+    }, [editingPromotion]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        const lines = input.split("\n").filter((line) => line.trim() !== "");
+        const newPromotions = [];
 
-        // Filter out incomplete rows
-        const validPromotions = rows
-            .filter((row) => row.name && row.startDate && row.endDate)
-            .map((row) => ({
-                id: Math.random(), // Generate a new ID for the actual promotion
-                name: row.name,
-                startDate: new Date(row.startDate),
-                endDate: new Date(row.endDate),
-                color: row.color,
-            }));
+        for (const line of lines) {
+            const parts = line.split(",").map((part) => part.trim());
+            if (parts.length === 4) {
+                const [name, startDate, endDate, color] = parts;
+                newPromotions.push({
+                    id: editingPromotion ? editingPromotion.id : null, // ID handled by App/Firestore
+                    name,
+                    startDate: new Date(startDate),
+                    endDate: new Date(endDate),
+                    color,
+                });
+            }
+        }
 
-        if (validPromotions.length === 0) return;
-
-        onAddPromotions(validPromotions);
-
-        // Reset form to a single empty row
-        setRows([
-            { id: Date.now(), name: "", startDate: "", endDate: "", color: "#3b82f6" },
-        ]);
+        if (newPromotions.length > 0) {
+            onAddPromotions(newPromotions);
+            if (!editingPromotion) {
+                setInput("");
+            }
+        }
     };
 
     return (
-        <form className="promotion-form" onSubmit={handleSubmit}>
-            <div className="form-header">
-                <h3>Add Promotions</h3>
-            </div>
-
-            <div className="form-rows">
-                {rows.map((row, index) => (
-                    <div key={row.id} className="form-row">
-                        <div className="form-group">
-                            <label>Name</label>
-                            <input
-                                type="text"
-                                value={row.name}
-                                onChange={(e) => handleRowChange(row.id, "name", e.target.value)}
-                                placeholder="Promotion Name"
-                                required
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Start</label>
-                            <input
-                                type="date"
-                                value={row.startDate}
-                                onChange={(e) =>
-                                    handleRowChange(row.id, "startDate", e.target.value)
-                                }
-                                required
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>End</label>
-                            <input
-                                type="date"
-                                value={row.endDate}
-                                onChange={(e) =>
-                                    handleRowChange(row.id, "endDate", e.target.value)
-                                }
-                                required
-                            />
-                        </div>
-                        <div className="form-group color-group">
-                            <label>Color</label>
-                            <input
-                                type="color"
-                                value={row.color}
-                                onChange={(e) =>
-                                    handleRowChange(row.id, "color", e.target.value)
-                                }
-                            />
-                        </div>
-                        {rows.length > 1 && (
-                            <button
-                                type="button"
-                                className="remove-btn"
-                                onClick={() => removeRow(row.id)}
-                                title="Remove row"
-                            >
-                                <Trash2 size={16} />
-                            </button>
-                        )}
-                    </div>
-                ))}
-            </div>
-
-            <div className="form-actions">
-                <button type="button" className="add-row-btn" onClick={addRow}>
-                    <Plus size={16} /> Add Row
-                </button>
-                <button type="submit" className="submit-btn">
-                    Add All Promotions
-                </button>
-            </div>
-        </form>
+        <div className="promotion-form">
+            <h3>{editingPromotion ? "Edit Promotion" : "Add Promotions"}</h3>
+            <p style={{ fontSize: "0.8em", color: "#666" }}>
+                Format: Name, StartDate(YYYY-MM-DD), EndDate(YYYY-MM-DD), Color(#Hex)
+                <br />
+                Example: Summer Sale, 2025-11-05, 2025-11-15, #3b82f6
+            </p>
+            <form onSubmit={handleSubmit}>
+                <textarea
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder="Enter promotion details..."
+                    rows={5}
+                    style={{ width: "100%", marginBottom: "10px" }}
+                />
+                <div style={{ display: "flex", gap: "10px" }}>
+                    <button type="submit" style={{ flex: 1 }}>
+                        {editingPromotion ? "Update Promotion" : "Add Promotions"}
+                    </button>
+                    {editingPromotion && (
+                        <button type="button" onClick={onCancelEdit} style={{ backgroundColor: "#ccc" }}>
+                            Cancel
+                        </button>
+                    )}
+                </div>
+            </form>
+        </div>
     );
-};
-
-export default PromotionForm;
+}

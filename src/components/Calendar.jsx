@@ -1,104 +1,97 @@
 import React from "react";
-import {
-    format,
-    startOfMonth,
-    endOfMonth,
-    startOfWeek,
-    endOfWeek,
-    eachDayOfInterval,
-    isSameMonth,
-    isSameDay,
-    addMonths,
-    subMonths,
-    isWithinInterval,
-} from "date-fns";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 
-const Calendar = ({ currentDate, onDateChange, promotions }) => {
-    const monthStart = startOfMonth(currentDate);
-    const monthEnd = endOfMonth(monthStart);
-    const startDate = startOfWeek(monthStart);
-    const endDate = endOfWeek(monthEnd);
+export default function Calendar({ currentDate, onDateChange, promotions }) {
+    const monthNames = [
+        "1월", "2월", "3월", "4월", "5월", "6월",
+        "7월", "8월", "9월", "10월", "11월", "12월",
+    ];
 
-    const dateFormat = "d";
-    const days = eachDayOfInterval({ start: startDate, end: endDate });
+    const daysOfWeek = ["일", "월", "화", "수", "목", "금", "토"];
 
-    const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-    const nextMonth = () => {
-        onDateChange(addMonths(currentDate, 1));
+    const getDaysInMonth = (date) => {
+        const year = date.getFullYear();
+        const month = date.getMonth();
+        const days = new Date(year, month + 1, 0).getDate();
+        const firstDay = new Date(year, month, 1).getDay();
+        return { days, firstDay };
     };
 
-    const prevMonth = () => {
-        onDateChange(subMonths(currentDate, 1));
+    const { days, firstDay } = getDaysInMonth(currentDate);
+
+    const handlePrevMonth = () => {
+        onDateChange(
+            new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1)
+        );
+    };
+
+    const handleNextMonth = () => {
+        onDateChange(
+            new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1)
+        );
+    };
+
+    const renderDays = () => {
+        const calendarDays = [];
+
+        // Empty cells for days before the first day of the month
+        for (let i = 0; i < firstDay; i++) {
+            calendarDays.push(<div key={`empty-${i}`} className="calendar-day empty"></div>);
+        }
+
+        // Days of the month
+        for (let i = 1; i <= days; i++) {
+            const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), i);
+            const dayPromotions = promotions.filter((promo) => {
+                const start = new Date(promo.startDate);
+                const end = new Date(promo.endDate);
+                // Reset hours to compare dates only
+                start.setHours(0, 0, 0, 0);
+                end.setHours(0, 0, 0, 0);
+                date.setHours(0, 0, 0, 0);
+                return date >= start && date <= end;
+            });
+
+            calendarDays.push(
+                <div key={i} className="calendar-day">
+                    <span className="day-number">{i}</span>
+                    <div className="day-promotions">
+                        {dayPromotions.map((promo) => (
+                            <div
+                                key={promo.id}
+                                className="promotion-indicator"
+                                style={{ backgroundColor: promo.color }}
+                                title={promo.name}
+                            >
+                                {promo.name}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        return calendarDays;
     };
 
     return (
-        <div className="calendar-container">
-            <div className="header row flex-middle">
-                <div className="col col-start">
-                    <div className="icon" onClick={prevMonth}>
-                        <ChevronLeft />
-                    </div>
-                </div>
-                <div className="col col-center">
-                    <span>{format(currentDate, "MMMM yyyy")}</span>
-                </div>
-                <div className="col col-end">
-                    <div className="icon" onClick={nextMonth}>
-                        <ChevronRight />
-                    </div>
-                </div>
+        <div className="calendar">
+            <div className="calendar-header">
+                <button onClick={handlePrevMonth}>&lt;</button>
+                <h2>
+                    {currentDate.getFullYear()}년 {monthNames[currentDate.getMonth()]}
+                </h2>
+                <button onClick={handleNextMonth}>&gt;</button>
             </div>
-
-            <div className="days row">
-                {weekDays.map((day) => (
-                    <div className="col col-center" key={day}>
+            <div className="calendar-grid-header">
+                {daysOfWeek.map((day) => (
+                    <div key={day} className="day-name">
                         {day}
                     </div>
                 ))}
             </div>
-
-            <div className="body">
-                <div className="row wrap">
-                    {days.map((day) => {
-                        const dayPromotions = promotions.filter((promo) =>
-                            isWithinInterval(day, {
-                                start: promo.startDate,
-                                end: promo.endDate,
-                            })
-                        );
-
-                        return (
-                            <div
-                                className={`col cell ${!isSameMonth(day, monthStart)
-                                        ? "disabled"
-                                        : isSameDay(day, new Date())
-                                            ? "selected"
-                                            : ""
-                                    }`}
-                                key={day.toString()}
-                            >
-                                <span className="number">{format(day, dateFormat)}</span>
-                                <div className="promotions">
-                                    {dayPromotions.map((promo) => (
-                                        <div
-                                            key={promo.id}
-                                            className="promotion-bar"
-                                            style={{ backgroundColor: promo.color }}
-                                            title={promo.name}
-                                        >
-                                            {promo.name}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
+            <div className="calendar-grid">
+                {renderDays()}
             </div>
         </div>
     );
-};
-
-export default Calendar;
+}
