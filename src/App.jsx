@@ -4,6 +4,7 @@ import PromotionForm from "./components/PromotionForm";
 import MonthlyStats from "./components/MonthlyStats";
 import LoginPage from "./components/LoginPage";
 import SignupPage from "./components/SignupPage";
+import Dashboard from "./components/Dashboard";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { db } from "./firebase";
 import {
@@ -111,21 +112,26 @@ function AppContent() {
           <button onClick={logout} style={{ padding: "5px 10px", cursor: "pointer" }}>Logout</button>
         </div>
       </header>
-      <main>
-        <div className="calendar-section">
-          <MonthlyStats currentDate={currentDate} promotions={promotions} />
-          <Calendar
-            currentDate={currentDate}
-            onDateChange={setCurrentDate}
-            promotions={promotions}
-          />
+      <main className="main-content">
+        <div className="left-panel">
+          <Dashboard promotions={promotions} />
+          <div className="form-section">
+            <PromotionForm
+              onAddPromotions={handleAddPromotions}
+              editingPromotion={editingPromotion}
+              onCancelEdit={handleCancelEdit}
+            />
+          </div>
         </div>
-        <div className="sidebar">
-          <PromotionForm
-            onAddPromotions={handleAddPromotions}
-            editingPromotion={editingPromotion}
-            onCancelEdit={handleCancelEdit}
-          />
+        <div className="right-panel">
+          <div className="calendar-section">
+            <MonthlyStats currentDate={currentDate} promotions={promotions} />
+            <Calendar
+              currentDate={currentDate}
+              onDateChange={setCurrentDate}
+              promotions={promotions}
+            />
+          </div>
           <div className="promotions-list">
             <h3>Upcoming Promotions</h3>
             <ul style={{ listStyle: "none", padding: 0 }}>
